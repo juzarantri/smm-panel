@@ -1,16 +1,30 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table.
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table for Replit Auth
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  avatar: text("avatar"),
-  googleId: text("google_id").unique(),
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
   balance: integer("balance").default(0), // in cents
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const serviceCategories = pgTable("service_categories", {
@@ -38,7 +52,7 @@ export const services = pgTable("services", {
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   serviceId: integer("service_id").references(() => services.id),
   quantity: integer("quantity").notNull(),
   targetUrl: text("target_url").notNull(),
@@ -48,13 +62,6 @@ export const orders = pgTable("orders", {
   remainingCount: integer("remaining_count"),
   createdAt: timestamp("created_at").defaultNow(),
   completedAt: timestamp("completed_at"),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  email: true,
-  name: true,
-  avatar: true,
-  googleId: true,
 });
 
 export const insertServiceCategorySchema = createInsertSchema(serviceCategories).pick({
@@ -84,8 +91,8 @@ export const insertOrderSchema = createInsertSchema(orders).pick({
   totalPrice: true,
 });
 
+export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
 export type ServiceCategory = typeof serviceCategories.$inferSelect;
 export type InsertServiceCategory = z.infer<typeof insertServiceCategorySchema>;
 export type Service = typeof services.$inferSelect;

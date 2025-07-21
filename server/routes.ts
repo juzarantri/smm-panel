@@ -2,8 +2,27 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertOrderSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { seedDatabase } from "./seed";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Seed database
+  await seedDatabase();
+  
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   // Get all service categories
   app.get("/api/categories", async (req, res) => {
     try {
@@ -38,22 +57,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user orders (placeholder for when auth is implemented)
-  app.get("/api/orders", async (req, res) => {
+  // Get user orders (protected route)
+  app.get("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
-      // For now, return all orders - will be filtered by user when auth is implemented
-      const orders = await storage.getAllOrders();
+      const userId = req.user.claims.sub;
+      const orders = await storage.getOrdersByUser(userId);
       res.json(orders);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
 
-  // Create new order
-  app.post("/api/orders", async (req, res) => {
+  // Create new order (protected route)
+  app.post("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const validatedData = insertOrderSchema.parse(req.body);
-      const order = await storage.createOrder(validatedData);
+      const orderData = {
+        ...validatedData,
+        userId,
+      };
+      const order = await storage.createOrder(orderData);
       res.status(201).json(order);
     } catch (error) {
       if (error instanceof Error) {
