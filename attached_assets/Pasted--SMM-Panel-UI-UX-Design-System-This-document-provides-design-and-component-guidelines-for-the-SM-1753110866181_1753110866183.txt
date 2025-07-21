@@ -1,0 +1,64 @@
+# SMM Panel UI/UX Design System
+
+This document provides design and component guidelines for the SMM Panel project to ensure a consistent, beautiful, and modern user experience across all pages and features.
+
+## 1. Color Palette
+
+- **Primary:** #6366f1 (Indigo-500)
+- **Accent:** #f59e42 (Orange-400)
+- **Background:** #ffffff (light), #0a0a0a (dark)
+- **Foreground/Text:** #171717 (light), #ededed (dark)
+- Use Tailwind's default palette for additional colors.
+
+## 2. Typography
+
+- **Font:** Use a clean sans-serif font (e.g., Inter, Geist, or system-ui).
+- **Headings:** Bold, clear, and spaced.
+- **Body:** Comfortable line height, not too small.
+
+## 3. Spacing & Layout
+
+- Use generous padding and margin for whitespace.
+- Max width for main content: `max-w-4xl mx-auto`.
+- Responsive: Always use Tailwind's responsive classes.
+
+## 4. Components
+
+- All UI elements (buttons, cards, forms, etc.) should be in `/src/components`.
+- Each component should be reusable, customizable via props, and documented.
+- Use consistent border radius, shadow, and hover effects.
+
+## 5. Buttons
+
+- Primary: Indigo background, white text, rounded, shadow, hover:indigo-600.
+- Secondary: White background, indigo text, border, hover:bg-indigo-50.
+- Disabled: Gray background, not clickable.
+
+## 6. Forms
+
+- Inputs: Rounded, border, focus:ring, padding.
+- Labels: Small, bold, above input.
+- Error: Red text below input.
+
+## 7. Cards & Sections
+
+- Use `rounded-xl`, `shadow-md`, `p-6`, `bg-white` (or `bg-zinc-900` for dark).
+- Space between cards: `gap-6` or `gap-8`.
+
+## 8. Authentication
+
+- Google Sign-In button: Use official branding, centered on homepage if not signed in.
+- Show user avatar and name when signed in.
+
+## 9. Accessibility
+
+- All interactive elements must be keyboard accessible.
+- Use semantic HTML and ARIA attributes.
+
+## 10. Future Features
+
+- Dashboard, admin panel, order history, analytics, notifications, support chat.
+
+---
+
+**Update this file as new components or patterns are added.**
