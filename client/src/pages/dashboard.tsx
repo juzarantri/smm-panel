@@ -1,37 +1,73 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
 import { 
-  Moon, 
-  Sun, 
-  User, 
-  Wallet, 
-  ShoppingCart, 
-  TrendingUp, 
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Plus
+  Search,
+  Bell,
+  Settings,
+  DollarSign,
+  Sun,
+  Moon,
+  ChevronLeft,
+  Plus,
+  Sparkles,
+  ShoppingCart,
+  CreditCard,
+  Ticket,
+  HelpCircle,
+  Star,
+  MoreHorizontal,
+  Menu,
+  X
 } from "lucide-react";
-import type { Order } from "@shared/schema";
+import { 
+  SiInstagram, 
+  SiFacebook, 
+  SiYoutube, 
+  SiX, 
+  SiSpotify, 
+  SiTelegram, 
+  SiDiscord, 
+  SiSnapchat, 
+  SiLinkedin,
+  SiGoogle,
+  SiTiktok,
+  SiTwitch
+} from "react-icons/si";
+import type { Order, Service, ServiceCategory } from "@shared/schema";
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [currentPage, setCurrentPage] = useState("new-order");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
     enabled: isAuthenticated,
   });
 
+  const { data: categories = [] } = useQuery<ServiceCategory[]>({
+    queryKey: ["/api/categories"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+    enabled: isAuthenticated,
+  });
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
       </div>
     );
   }
@@ -41,243 +77,463 @@ export default function Dashboard() {
     return null;
   }
 
-  const stats = {
-    totalOrders: orders.length,
-    pendingOrders: orders.filter(order => order.status === "pending").length,
-    completedOrders: orders.filter(order => order.status === "completed").length,
-    totalSpent: orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0) / 100, // Convert from cents
-  };
+  const sidebarItems = [
+    { id: "new-order", label: "New Order", icon: Plus, color: "text-orange-500" },
+    { id: "mass-order", label: "Mass Order", icon: ShoppingCart, color: "text-gray-600" },
+    { id: "orders", label: "Orders", icon: ShoppingCart, color: "text-orange-500" },
+    { id: "add-funds", label: "Add Funds", icon: CreditCard, color: "text-gray-600" },
+    { id: "tickets", label: "Tickets", icon: Ticket, color: "text-orange-500" },
+    { id: "services", label: "Services", icon: MoreHorizontal, color: "text-gray-600" },
+    { id: "updates", label: "Updates", icon: Bell, color: "text-gray-600" },
+    { id: "vip-updates", label: "VIP Updates", icon: Star, color: "text-gray-600" },
+  ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-800";
-      case "processing":
-        return "bg-blue-500/10 text-blue-700 border-blue-200 dark:text-blue-400 dark:border-blue-800";
-      case "pending":
-        return "bg-yellow-500/10 text-yellow-700 border-yellow-200 dark:text-yellow-400 dark:border-yellow-800";
-      case "cancelled":
-        return "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-800";
-      default:
-        return "bg-gray-500/10 text-gray-700 border-gray-200 dark:text-gray-400 dark:border-gray-800";
-    }
-  };
+  const socialPlatforms = [
+    { name: "Instagram", icon: SiInstagram, color: "text-pink-500" },
+    { name: "Facebook", icon: SiFacebook, color: "text-blue-600" },
+    { name: "Youtube", icon: SiYoutube, color: "text-red-500" },
+    { name: "X (Twitter)", icon: SiX, color: "text-black dark:text-white" },
+    { name: "Spotify", icon: SiSpotify, color: "text-green-500" },
+    { name: "TikTok", icon: SiTiktok, color: "text-black dark:text-white" },
+    { name: "Telegram", icon: SiTelegram, color: "text-blue-400" },
+    { name: "Discord", icon: SiDiscord, color: "text-indigo-500" },
+    { name: "Linkedin", icon: SiLinkedin, color: "text-blue-700" },
+    { name: "Snapchat", icon: SiSnapchat, color: "text-yellow-400" },
+    { name: "Google", icon: SiGoogle, color: "text-red-500" },
+    { name: "Twitch", icon: SiTwitch, color: "text-purple-500" },
+    { name: "Website Traffic", icon: Search, color: "text-gray-500" },
+    { name: "Reviews", icon: Star, color: "text-yellow-500" },
+    { name: "Others", icon: Plus, color: "text-gray-500" },
+    { name: "Everything", icon: MoreHorizontal, color: "text-gray-500" },
+  ];
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4" />;
-      case "processing":
-        return <Clock className="h-4 w-4" />;
-      case "pending":
-        return <AlertCircle className="h-4 w-4" />;
+  const renderNewOrderPage = () => (
+    <div className="p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">CHOOSE A SOCIAL NETWORK</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm text-gray-500">Hide the filter</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
+        {socialPlatforms.map((platform) => (
+          <Card key={platform.name} className="hover:shadow-md transition-shadow cursor-pointer border border-gray-200 dark:border-gray-700">
+            <CardContent className="p-6 text-center">
+              <platform.icon className={`h-8 w-8 mx-auto mb-3 ${platform.color}`} />
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{platform.name}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Button className="bg-orange-500 hover:bg-orange-600 text-white py-3">
+          NEW ORDER
+        </Button>
+        <Button variant="outline" className="py-3">
+          MY FAVORITE
+        </Button>
+        <Button variant="outline" className="py-3">
+          AUTO SUBSCRIPTION
+        </Button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center space-x-4 mb-4">
+          <Input placeholder="Search" className="flex-1" />
+        </div>
+        <div className="text-center py-8 text-gray-500">
+          <p>Select a platform to view available services</p>
+        </div>
+      </div>
+
+      <Card className="mt-6">
+        <CardContent className="p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-blue-800 dark:text-blue-200">7600 - CoinMarketCap Watchlist Followers [Max: 250K]</h3>
+                <p className="text-sm text-blue-600 dark:text-blue-300">[Start Time: 0 - 24 Hours] [Refill: Non Drop] [Speed: 5k/Day] - $27.50</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-600 dark:text-gray-400">START TIME</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">SPEED</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderOrdersPage = () => (
+    <div className="p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="w-full justify-start bg-transparent border-b-0 h-auto p-0">
+              <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">All</TabsTrigger>
+              <TabsTrigger value="pending" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Pending</TabsTrigger>
+              <TabsTrigger value="in-progress" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">In progress</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Completed</TabsTrigger>
+              <TabsTrigger value="partial" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Partial</TabsTrigger>
+              <TabsTrigger value="processing" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Processing</TabsTrigger>
+              <TabsTrigger value="canceled" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Canceled</TabsTrigger>
+              <TabsTrigger value="refunds" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Refunds</TabsTrigger>
+            </TabsList>
+            <div className="p-4">
+              <Input placeholder="Search" className="w-full" />
+            </div>
+          </Tabs>
+        </div>
+
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Link</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Charge</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Start count</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Quantity</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Service</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Remains</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-gray-500">
+                    No orders found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAddFundsPage = () => (
+    <div className="p-6">
+      <div className="mb-6">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+          <p className="text-green-800 dark:text-green-200">
+            Please pay attention when paying with PAYTM. We have updated our QR code, so please do not send payments to the old one.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Button className="bg-orange-500 hover:bg-orange-600 text-white py-3">
+          ADD FUNDS
+        </Button>
+        <Button variant="outline" className="py-3">
+          CHECK HISTORY
+        </Button>
+        <Button variant="outline" className="py-3">
+          REFUND HISTORY
+        </Button>
+        <Button variant="outline" className="py-3 text-xs">
+          PAYEER, PAYPAL, SKRILL, CRYPTOCURRENCY - BNB - AND MORE (3% BONUS)
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Payeer, Paypal, Skrill, Cryptocurrency - BNB - and more (3% bonus)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amount</label>
+                <Input placeholder="Enter amount" />
+              </div>
+              <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3">
+                PAY
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payeer - Paypal - Credit Card - Skrill - Cryptocurrency - Bank Transfer - and more</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">5$ Minimum Payment!</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">3% Bonus on Payeer payments!</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const renderTicketsPage = () => (
+    <div className="p-6">
+      <div className="mb-6">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            Please make sure to read out Terms before opening a ticket! Check out our general, service, and refund policy here: <span className="underline">Terms and Service</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <Tabs defaultValue="tickets" className="w-full">
+            <TabsList className="w-full justify-start bg-transparent border-b-0 h-auto p-0">
+              <TabsTrigger value="tickets" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">Tickets</TabsTrigger>
+              <TabsTrigger value="new-tickets" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">New Tickets</TabsTrigger>
+            </TabsList>
+            <div className="p-4">
+              <Input placeholder="Search" className="w-full" />
+            </div>
+          </Tabs>
+        </div>
+
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Subject</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Last update</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={4} className="text-center py-12 text-gray-500">
+                    No tickets found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderServicesPage = () => (
+    <div className="p-6">
+      <div className="mb-6 flex items-center space-x-4">
+        <Input placeholder="Search" className="flex-1" />
+        <select className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800">
+          <option>All</option>
+        </select>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Service</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Rate/1000</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Min</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Max</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Average time</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-100 dark:border-gray-700">
+                  <td colSpan={7} className="py-4 px-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 text-blue-500 mr-2" />
+                        <span className="font-medium text-blue-800 dark:text-blue-200">CoinMarketCap</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {services.slice(0, 5).map((service) => (
+                  <tr key={service.id} className="border-b border-gray-100 dark:border-gray-700">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 text-gray-400 mr-2" />
+                        <span>{service.id}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center">
+                        <ShoppingCart className="h-4 w-4 text-blue-500 mr-2" />
+                        <span className="text-sm">{service.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">${(service.price / 100).toFixed(2)}</td>
+                    <td className="py-3 px-4">{service.minQuantity}</td>
+                    <td className="py-3 px-4">{service.maxQuantity?.toLocaleString()}</td>
+                    <td className="py-3 px-4">{service.deliveryTime || "N/A"}</td>
+                    <td className="py-3 px-4">
+                      <Button size="sm" className="bg-orange-500 hover:bg-orange-600">
+                        SHOW DETAILS
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case "new-order":
+        return renderNewOrderPage();
+      case "orders":
+        return renderOrdersPage();
+      case "add-funds":
+        return renderAddFundsPage();
+      case "tickets":
+        return renderTicketsPage();
+      case "services":
+        return renderServicesPage();
       default:
-        return <Clock className="h-4 w-4" />;
+        return renderNewOrderPage();
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-                <User className="text-white text-xl" size={20} />
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">J</span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {user?.firstName || user?.email}</p>
-              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+                JAP
+              </span>
+              <span className="text-sm text-gray-500">JUST ANOTHER PANEL</span>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center space-x-6 text-sm">
+              <span className="text-blue-600 dark:text-blue-400">Welcome: {user?.firstName || user?.email}</span>
+              <span className="text-blue-600 dark:text-blue-400">Total Orders: {orders.length}</span>
+              <span className="text-blue-600 dark:text-blue-400">Current Balance: ****</span>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <Input placeholder="Search" className="w-64 hidden md:block" />
+            
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="icon">
+                <Bell className="h-5 w-5" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white">
+                  1
+                </Badge>
+              </Button>
+              
+              <Button variant="ghost" size="icon">
+                <Settings className="h-5 w-5" />
+              </Button>
+              
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="text-muted-foreground hover:text-foreground"
               >
                 <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
               </Button>
 
-              <div className="flex items-center space-x-3">
-                <Avatar>
-                  <AvatarImage src={user?.profileImageUrl || ""} alt={user?.firstName || "User"} />
-                  <AvatarFallback>
-                    {(user?.firstName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-foreground">
-                    {user?.firstName ? `${user.firstName} ${user?.lastName || ""}`.trim() : user?.email}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Balance: ${((user?.balance || 0) / 100).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.href = "/api/logout"}
-                className="text-foreground hover:text-foreground"
-              >
-                Logout
+              <Button variant="ghost" size="icon">
+                <DollarSign className="h-5 w-5" />
               </Button>
+
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.profileImageUrl || ""} alt={user?.firstName || "User"} />
+                <AvatarFallback className="bg-blue-500 text-white">
+                  {(user?.firstName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <ShoppingCart className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.totalOrders}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-500/10 rounded-lg">
-                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.pendingOrders}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.completedOrders}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Spent</p>
-                  <p className="text-3xl font-bold text-foreground">${stats.totalSpent.toFixed(2)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex">
+        {/* Sidebar */}
+        <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out`}>
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between p-4 lg:hidden">
+              <span className="font-semibold">Menu</span>
+              <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            <nav className="flex-1 px-4 py-4 space-y-1">
+              {sidebarItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentPage(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === item.id
+                      ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-l-4 border-orange-500'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <item.icon className={`mr-3 h-5 w-5 ${item.color}`} />
+                  {item.label}
+                </button>
+              ))}
+              
+              <button className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md mt-4">
+                Show More
+              </button>
+            </nav>
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Recent Orders
-                <Button size="sm" className="bg-primary hover:bg-primary/90">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Order
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {ordersLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center space-x-4 animate-pulse">
-                      <div className="w-12 h-12 bg-muted rounded-lg"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-muted rounded mb-2"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
-                      </div>
-                      <div className="w-20 h-6 bg-muted rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="text-center py-8">
-                  <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No orders yet</p>
-                  <Button className="mt-4 bg-primary hover:bg-primary/90">
-                    Place Your First Order
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {orders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-                          <ShoppingCart className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">Order #{order.id}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {order.quantity} items • ${((order.totalPrice || 0) / 100).toFixed(2)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(order.createdAt!).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className={`${getStatusColor(order.status)} flex items-center gap-1`}>
-                        {getStatusIcon(order.status)}
-                        {order.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Balance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Wallet className="h-8 w-8 text-white" />
-                </div>
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  ${((user?.balance || 0) / 100).toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">Available Balance</p>
-                <Button className="w-full bg-primary hover:bg-primary/90">
-                  Add Funds
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Main Content */}
+        <div className="flex-1 lg:ml-0">
+          {renderCurrentPage()}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
