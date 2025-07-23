@@ -31,14 +31,20 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  // Generate a session secret if not provided - for development/migration purposes
+  const sessionSecret = process.env.SESSION_SECRET || 
+    'replit-migration-secret-' + Math.random().toString(36).substring(2, 15) + 
+    Math.random().toString(36).substring(2, 15);
+  
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       maxAge: sessionTtl,
     },
   });

@@ -1,13 +1,16 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   Search,
   Bell,
@@ -46,22 +49,64 @@ import type { Order, Service, ServiceCategory } from "@shared/schema";
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState("new-order");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Order form state
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [quantity, setQuantity] = useState<number>(100);
+  const [link, setLink] = useState<string>("");
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
     enabled: isAuthenticated,
   });
 
-  const { data: categories = [] } = useQuery<ServiceCategory[]>({
+  const { data: socialPlatforms = [], isLoading: platformsLoading } = useQuery<ServiceCategory[]>({
     queryKey: ["/api/categories"],
-    enabled: isAuthenticated,
   });
 
-  const { data: services = [] } = useQuery<Service[]>({
-    queryKey: ["/api/services"],
-    enabled: isAuthenticated,
+  // Get service categories for selected platform
+  const { data: platformCategories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["/api/platforms", selectedPlatform, "categories"],
+    enabled: !!selectedPlatform,
+  });
+
+  // Get services for selected platform and category
+  const { data: categoryServices = [], isLoading: servicesLoading } = useQuery<Service[]>({
+    queryKey: ["/api/platforms", selectedPlatform, "categories", selectedCategory, "services"],
+    enabled: !!selectedPlatform && !!selectedCategory,
+  });
+
+  // Create order mutation
+  const createOrderMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      return apiRequest("/api/orders", {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Order created successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      // Reset form
+      setSelectedPlatform(null);
+      setSelectedCategory(null);
+      setSelectedService(null);
+      setQuantity(100);
+      setLink("");
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create order", 
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
+    },
   });
 
   if (isLoading) {
@@ -88,84 +133,332 @@ export default function Dashboard() {
     { id: "vip-updates", label: "VIP Updates", icon: Star, color: "text-gray-600" },
   ];
 
-  const socialPlatforms = [
-    { name: "Instagram", icon: SiInstagram, color: "text-pink-500" },
-    { name: "Facebook", icon: SiFacebook, color: "text-blue-600" },
-    { name: "Youtube", icon: SiYoutube, color: "text-red-500" },
-    { name: "X (Twitter)", icon: SiX, color: "text-black dark:text-white" },
-    { name: "Spotify", icon: SiSpotify, color: "text-green-500" },
-    { name: "TikTok", icon: SiTiktok, color: "text-black dark:text-white" },
-    { name: "Telegram", icon: SiTelegram, color: "text-blue-400" },
-    { name: "Discord", icon: SiDiscord, color: "text-indigo-500" },
-    { name: "Linkedin", icon: SiLinkedin, color: "text-blue-700" },
-    { name: "Snapchat", icon: SiSnapchat, color: "text-yellow-400" },
-    { name: "Google", icon: SiGoogle, color: "text-red-500" },
-    { name: "Twitch", icon: SiTwitch, color: "text-purple-500" },
-    { name: "Website Traffic", icon: Search, color: "text-gray-500" },
-    { name: "Reviews", icon: Star, color: "text-yellow-500" },
-    { name: "Others", icon: Plus, color: "text-gray-500" },
-    { name: "Everything", icon: MoreHorizontal, color: "text-gray-500" },
-  ];
+    // Icon mapping for dynamic categories
+  const getIconForCategory = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('instagram')) return { icon: SiInstagram, color: "text-pink-500" };
+    if (name.includes('facebook')) return { icon: SiFacebook, color: "text-blue-600" };
+    if (name.includes('youtube')) return { icon: SiYoutube, color: "text-red-500" };
+    if (name.includes('twitter') || name.includes('x')) return { icon: SiX, color: "text-black dark:text-white" };
+    if (name.includes('spotify')) return { icon: SiSpotify, color: "text-green-500" };
+    if (name.includes('tiktok')) return { icon: SiTiktok, color: "text-black dark:text-white" };
+    if (name.includes('telegram')) return { icon: SiTelegram, color: "text-blue-400" };
+    if (name.includes('discord')) return { icon: SiDiscord, color: "text-indigo-500" };
+    if (name.includes('linkedin')) return { icon: SiLinkedin, color: "text-blue-700" };
+    if (name.includes('snapchat')) return { icon: SiSnapchat, color: "text-yellow-400" };
+    if (name.includes('google')) return { icon: SiGoogle, color: "text-red-500" };
+    if (name.includes('twitch')) return { icon: SiTwitch, color: "text-purple-500" };
+    if (name.includes('traffic')) return { icon: Search, color: "text-gray-500" };
+    if (name.includes('reviews')) return { icon: Star, color: "text-yellow-500" };
+    if (name.includes('other')) return { icon: Plus, color: "text-gray-500" };
+    return { icon: MoreHorizontal, color: "text-gray-500" };
+  };
 
-  const renderNewOrderPage = () => (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">CHOOSE A SOCIAL NETWORK</h2>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-500">Hide the filter</div>
+  // Calculate total price based on selected service and quantity
+  const calculatePrice = () => {
+    if (!selectedService || !quantity) return 0;
+    return (selectedService.price * quantity) / 100000; // Convert from cents per 1000
+  };
+
+  // Handle order submission
+  const handleSubmitOrder = () => {
+    if (!selectedService || !link || !quantity) {
+      toast({ 
+        title: "Missing information", 
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (quantity < selectedService.minQuantity || quantity > selectedService.maxQuantity) {
+      toast({ 
+        title: "Invalid quantity", 
+        description: `Quantity must be between ${selectedService.minQuantity} and ${selectedService.maxQuantity}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    createOrderMutation.mutate({
+      serviceId: selectedService.id,
+      link,
+      quantity,
+    });
+  };
+
+  // Reset form when platform changes
+  useEffect(() => {
+    setSelectedCategory(null);
+    setSelectedService(null);
+  }, [selectedPlatform]);
+
+  // Reset service when category changes
+  useEffect(() => {
+    setSelectedService(null);
+  }, [selectedCategory]);
+
+  const renderNewOrderPage = () => {
+    if (!selectedPlatform) {
+      // Step 1: Choose Social Platform (Image 1)
+      return (
+        <div className="p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">CHOOSE A SOCIAL NETWORK</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-500">Hide the filter</div>
+            </div>
+          </div>
+          
+          {platformsLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 animate-pulse">
+                  <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {socialPlatforms.map((platform) => {
+                const iconData = getIconForCategory(platform.name);
+                const Icon = iconData.icon;
+                return (
+                  <Card 
+                    key={platform.name} 
+                    className="cursor-pointer hover:shadow-lg transition-shadow duration-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                    onClick={() => setSelectedPlatform(platform.name)}
+                  >
+                    <CardContent className="p-6 text-center">
+                      <Icon className={`w-8 h-8 mx-auto mb-3 ${iconData.color}`} />
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{platform.name}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+      );
+    }
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
-        {socialPlatforms.map((platform) => (
-          <Card key={platform.name} className="hover:shadow-md transition-shadow cursor-pointer border border-gray-200 dark:border-gray-700">
-            <CardContent className="p-6 text-center">
-              <platform.icon className={`h-8 w-8 mx-auto mb-3 ${platform.color}`} />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{platform.name}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    // Step 2: Order Form (Images 2-5)
+    return (
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Order Form */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Buttons */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button className="bg-orange-500 hover:bg-orange-600 text-white py-3">
+                NEW ORDER
+              </Button>
+              <Button variant="outline" className="py-3">
+                MY FAVORITE
+              </Button>
+              <Button variant="outline" className="py-3">
+                AUTO SUBSCRIPTION
+              </Button>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white py-3">
-          NEW ORDER
-        </Button>
-        <Button variant="outline" className="py-3">
-          MY FAVORITE
-        </Button>
-        <Button variant="outline" className="py-3">
-          AUTO SUBSCRIPTION
-        </Button>
-      </div>
+            {/* Search Bar */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <Input placeholder="Search" className="w-full" />
+            </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center space-x-4 mb-4">
-          <Input placeholder="Search" className="flex-1" />
-        </div>
-        <div className="text-center py-8 text-gray-500">
-          <p>Select a platform to view available services</p>
-        </div>
-      </div>
-
-      <Card className="mt-6">
-        <CardContent className="p-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-blue-800 dark:text-blue-200">7600 - CoinMarketCap Watchlist Followers [Max: 250K]</h3>
-                <p className="text-sm text-blue-600 dark:text-blue-300">[Start Time: 0 - 24 Hours] [Refill: Non Drop] [Speed: 5k/Day] - $27.50</p>
+            {/* Service Category Selection */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div className="mb-4">
+                <button 
+                  onClick={() => setSelectedPlatform(null)}
+                  className="text-orange-500 hover:text-orange-600 mb-2 flex items-center"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Back to platforms
+                </button>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  {selectedPlatform} Services
+                </h3>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-600 dark:text-gray-400">START TIME</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">SPEED</div>
+
+              {/* Category Dropdown */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Service Category
+                  </label>
+                  <Select value={selectedCategory || ""} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriesLoading ? (
+                        <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                      ) : (
+                        platformCategories.map((category: any) => (
+                          <SelectItem key={category.name} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Service Selection */}
+                {selectedCategory && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Service
+                    </label>
+                    <Select 
+                      value={selectedService?.id || ""} 
+                      onValueChange={(value) => {
+                        const service = categoryServices.find(s => s.id === value);
+                        setSelectedService(service || null);
+                        if (service) {
+                          setQuantity(service.minQuantity);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a service..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {servicesLoading ? (
+                          <SelectItem value="loading" disabled>Loading services...</SelectItem>
+                        ) : (
+                          categoryServices.map((service) => (
+                            <SelectItem key={service.id} value={service.id}>
+                              {service.name} - ${(service.price / 100).toFixed(4)}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Service Details & Order Form */}
+                {selectedService && (
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                        {selectedService.id} - {selectedService.name}
+                      </h4>
+                      <p className="text-sm text-blue-600 dark:text-blue-300 mb-2">
+                        {selectedService.description}
+                      </p>
+                      <div className="text-sm text-blue-600 dark:text-blue-300">
+                        Min: {selectedService.minQuantity} - Max: {selectedService.maxQuantity}
+                      </div>
+                    </div>
+
+                    {/* Link Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Link
+                      </label>
+                      <Input 
+                        value={link}
+                        onChange={(e) => setLink(e.target.value)}
+                        placeholder="Enter your link here..."
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Quantity Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Quantity
+                      </label>
+                      <Input 
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                        min={selectedService.minQuantity}
+                        max={selectedService.maxQuantity}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Min: {selectedService.minQuantity} - Max: {selectedService.maxQuantity}
+                      </p>
+                    </div>
+
+                    {/* Price Display */}
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                        ${calculatePrice().toFixed(5)}
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button 
+                      onClick={handleSubmitOrder}
+                      disabled={createOrderMutation.isPending || !link || !quantity}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3"
+                    >
+                      {createOrderMutation.isPending ? "SUBMITTING..." : "SUBMIT"}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+
+          {/* Right Column - Service Info */}
+          <div className="space-y-4">
+            {selectedService && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-orange-500">NEW ORDER</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-gray-200">
+                      {selectedService.id} - {selectedService.name}
+                    </h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">START TIME</div>
+                      <div className="text-orange-500">N/A</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">SPEED</div>
+                      <div className="text-orange-500">N/A</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">GUARANTEED</div>
+                      <div className="text-orange-500">
+                        {selectedService.refillSupported ? "Yes" : "No"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">AVERAGE TIME</div>
+                      <div className="text-orange-500">N/A</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-500 text-sm">DESCRIPTION</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                      {selectedService.description}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderOrdersPage = () => (
     <div className="p-6">
