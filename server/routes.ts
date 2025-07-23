@@ -8,8 +8,7 @@ import { serviceSyncManager } from "./serviceSync";
 import { justAnotherPanelApi } from "./justAnotherPanelApi";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Seed database
-  await seedDatabase();
+  // No seeding - all data comes from JustAnotherPanel
   
   // Auth middleware
   await setupAuth(app);
@@ -25,37 +24,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
-  // Get all service categories
+  // Get all service categories dynamically from JustAnotherPanel
   app.get("/api/categories", async (req, res) => {
     try {
-      const categories = await storage.getAllServiceCategories();
+      const services = await justAnotherPanelApi.services();
+      
+      // Extract unique categories from services
+      const categoryMap = new Map();
+      services.forEach(service => {
+        const categoryName = service.category;
+        if (!categoryMap.has(categoryName)) {
+          categoryMap.set(categoryName, {
+            name: categoryName,
+            slug: categoryName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            serviceCount: 0
+          });
+        }
+        categoryMap.get(categoryName).serviceCount++;
+      });
+      
+      const categories = Array.from(categoryMap.values())
+        .sort((a, b) => b.serviceCount - a.serviceCount); // Sort by service count
+      
       res.json(categories);
     } catch (error) {
+      console.error("Failed to fetch categories:", error);
       res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
 
-  // Get all services
+  // Get all services from JustAnotherPanel
   app.get("/api/services", async (req, res) => {
     try {
-      const services = await storage.getAllServices();
-      res.json(services);
+      const services = await justAnotherPanelApi.services();
+      
+      // Transform services to our format with markup pricing
+      const transformedServices = services.map(service => ({
+        id: service.service,
+        externalId: service.service,
+        name: service.name,
+        description: service.description || `${service.name} - ${service.category}`,
+        category: service.category,
+        price: Math.round(parseFloat(service.rate || '0') * 120), // 20% markup in cents
+        rate: service.rate,
+        minQuantity: parseInt(service.min) || 1,
+        maxQuantity: parseInt(service.max) || 100000,
+        serviceType: service.type,
+        refillSupported: service.refill === true || service.refill === 1,
+        cancelSupported: service.cancel === true || service.cancel === 1,
+        isActive: true
+      }));
+      
+      res.json(transformedServices);
     } catch (error) {
+      console.error("Failed to fetch services:", error);
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
 
-  // Get services by category
-  app.get("/api/categories/:categoryId/services", async (req, res) => {
+  // Get services by category from JustAnotherPanel
+  app.get("/api/categories/:categoryName/services", async (req, res) => {
     try {
-      const categoryId = parseInt(req.params.categoryId);
-      if (isNaN(categoryId)) {
-        return res.status(400).json({ message: "Invalid category ID" });
-      }
-      const services = await storage.getServicesByCategory(categoryId);
-      res.json(services);
+      const categoryName = decodeURIComponent(req.params.categoryName);
+      const allServices = await justAnotherPanelApi.services();
+      
+      // Filter services by category
+      const categoryServices = allServices
+        .filter(service => service.category.toLowerCase() === categoryName.toLowerCase())
+        .map(service => ({
+          id: service.service,
+          externalId: service.service,
+          name: service.name,
+          description: service.description || `${service.name} - ${service.category}`,
+          category: service.category,
+          price: Math.round(parseFloat(service.rate || '0') * 120), // 20% markup in cents
+          rate: service.rate,
+          minQuantity: parseInt(service.min) || 1,
+          maxQuantity: parseInt(service.max) || 100000,
+          serviceType: service.type,
+          refillSupported: service.refill === true || service.refill === 1,
+          cancelSupported: service.cancel === true || service.cancel === 1,
+          isActive: true
+        }));
+      
+      res.json(categoryServices);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch services" });
+      console.error("Failed to fetch services for category:", error);
+      res.status(500).json({ message: "Failed to fetch services for category" });
     }
   });
 
@@ -70,20 +125,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new order (protected route) - Now uses JustAnotherPanel API
+  // Create new order (protected route) - Direct JustAnotherPanel API
   app.post("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertOrderSchema.parse(req.body);
-      const orderData = {
-        ...validatedData,
-        userId,
-      };
+      const { serviceId, link, quantity, customInputs } = req.body;
       
-      // Use the new external order creation method
-      const order = await storage.createExternalOrder(orderData);
+      if (!serviceId || !link || !quantity) {
+        return res.status(400).json({ message: "Service ID, link, and quantity are required" });
+      }
+
+      // Get service details from JustAnotherPanel to calculate price
+      const allServices = await justAnotherPanelApi.services();
+      const service = allServices.find(s => s.service === parseInt(serviceId));
+      
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      // Calculate total price with 20% markup
+      const basePrice = parseFloat(service.rate) || 0;
+      const totalPrice = Math.round(basePrice * (quantity / 1000) * 120); // 20% markup in cents
+
+      // Prepare order data for JustAnotherPanel
+      const orderData: any = {
+        service: parseInt(serviceId),
+        link: link,
+        quantity: parseInt(quantity)
+      };
+
+      // Add custom inputs based on service type
+      if (customInputs) {
+        Object.assign(orderData, customInputs);
+      }
+
+      // Create order on JustAnotherPanel
+      const externalOrder = await justAnotherPanelApi.order(orderData);
+      
+      if (!externalOrder.order) {
+        return res.status(400).json({ 
+          message: externalOrder.error || "Failed to create order with provider" 
+        });
+      }
+
+      // Store order in our database
+      const order = await storage.createDirectOrder({
+        userId,
+        serviceId: parseInt(serviceId),
+        serviceName: service.name,
+        link,
+        quantity: parseInt(quantity),
+        totalPrice,
+        externalOrderId: parseInt(externalOrder.order),
+        status: 'pending'
+      });
+
       res.status(201).json(order);
     } catch (error) {
+      console.error("Order creation error:", error);
       if (error instanceof Error) {
         res.status(400).json({ message: error.message });
       } else {

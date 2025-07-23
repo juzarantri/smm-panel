@@ -301,6 +301,31 @@ export class DatabaseStorage implements IStorage {
       return { success: false, message: "Failed to cancel order" };
     }
   }
+
+  async createDirectOrder(orderData: {
+    userId: string;
+    serviceId: number;
+    serviceName: string;
+    link: string;
+    quantity: number;
+    totalPrice: number;
+    externalOrderId: number;
+    status: string;
+  }) {
+    const newOrder = await db.insert(orders).values({
+      userId: orderData.userId,
+      serviceId: orderData.serviceId,
+      serviceName: orderData.serviceName,
+      link: orderData.link,
+      quantity: orderData.quantity,
+      totalPrice: orderData.totalPrice,
+      externalOrderId: orderData.externalOrderId,
+      status: orderData.status,
+      createdAt: new Date(),
+    }).returning();
+    
+    return newOrder[0];
+  }
 }
 
 export const storage = new DatabaseStorage();

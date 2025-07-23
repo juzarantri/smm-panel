@@ -48,20 +48,20 @@ export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const [currentPage, setCurrentPage] = useState("new-order");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
     enabled: isAuthenticated,
   });
 
-  const { data: categories = [] } = useQuery<ServiceCategory[]>({
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<ServiceCategory[]>({
     queryKey: ["/api/categories"],
-    enabled: isAuthenticated,
   });
 
-  const { data: services = [] } = useQuery<Service[]>({
+  const { data: services = [], isLoading: servicesLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
-    enabled: isAuthenticated,
   });
 
   if (isLoading) {
@@ -88,84 +88,145 @@ export default function Dashboard() {
     { id: "vip-updates", label: "VIP Updates", icon: Star, color: "text-gray-600" },
   ];
 
-  const socialPlatforms = [
-    { name: "Instagram", icon: SiInstagram, color: "text-pink-500" },
-    { name: "Facebook", icon: SiFacebook, color: "text-blue-600" },
-    { name: "Youtube", icon: SiYoutube, color: "text-red-500" },
-    { name: "X (Twitter)", icon: SiX, color: "text-black dark:text-white" },
-    { name: "Spotify", icon: SiSpotify, color: "text-green-500" },
-    { name: "TikTok", icon: SiTiktok, color: "text-black dark:text-white" },
-    { name: "Telegram", icon: SiTelegram, color: "text-blue-400" },
-    { name: "Discord", icon: SiDiscord, color: "text-indigo-500" },
-    { name: "Linkedin", icon: SiLinkedin, color: "text-blue-700" },
-    { name: "Snapchat", icon: SiSnapchat, color: "text-yellow-400" },
-    { name: "Google", icon: SiGoogle, color: "text-red-500" },
-    { name: "Twitch", icon: SiTwitch, color: "text-purple-500" },
-    { name: "Website Traffic", icon: Search, color: "text-gray-500" },
-    { name: "Reviews", icon: Star, color: "text-yellow-500" },
-    { name: "Others", icon: Plus, color: "text-gray-500" },
-    { name: "Everything", icon: MoreHorizontal, color: "text-gray-500" },
-  ];
+    // Icon mapping for dynamic categories
+  const getIconForCategory = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('instagram')) return { icon: SiInstagram, color: "text-pink-500" };
+    if (name.includes('facebook')) return { icon: SiFacebook, color: "text-blue-600" };
+    if (name.includes('youtube')) return { icon: SiYoutube, color: "text-red-500" };
+    if (name.includes('twitter') || name.includes('x.com')) return { icon: SiX, color: "text-black dark:text-white" };
+    if (name.includes('spotify')) return { icon: SiSpotify, color: "text-green-500" };
+    if (name.includes('tiktok')) return { icon: SiTiktok, color: "text-black dark:text-white" };
+    if (name.includes('telegram')) return { icon: SiTelegram, color: "text-blue-400" };
+    if (name.includes('discord')) return { icon: SiDiscord, color: "text-indigo-500" };
+    if (name.includes('linkedin')) return { icon: SiLinkedin, color: "text-blue-700" };
+    if (name.includes('snapchat')) return { icon: SiSnapchat, color: "text-yellow-400" };
+    if (name.includes('google')) return { icon: SiGoogle, color: "text-red-500" };
+    if (name.includes('twitch')) return { icon: SiTwitch, color: "text-purple-500" };
+    if (name.includes('traffic')) return { icon: Search, color: "text-gray-500" };
+    if (name.includes('reviews')) return { icon: Star, color: "text-yellow-500" };
+    if (name.includes('other')) return { icon: Plus, color: "text-gray-500" };
+    return { icon: MoreHorizontal, color: "text-gray-500" };
+  };
 
-  const renderNewOrderPage = () => (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">CHOOSE A SOCIAL NETWORK</h2>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-500">Hide the filter</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
-        {socialPlatforms.map((platform) => (
-          <Card key={platform.name} className="hover:shadow-md transition-shadow cursor-pointer border border-gray-200 dark:border-gray-700">
-            <CardContent className="p-6 text-center">
-              <platform.icon className={`h-8 w-8 mx-auto mb-3 ${platform.color}`} />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{platform.name}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white py-3">
-          NEW ORDER
-        </Button>
-        <Button variant="outline" className="py-3">
-          MY FAVORITE
-        </Button>
-        <Button variant="outline" className="py-3">
-          AUTO SUBSCRIPTION
-        </Button>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center space-x-4 mb-4">
-          <Input placeholder="Search" className="flex-1" />
-        </div>
-        <div className="text-center py-8 text-gray-500">
-          <p>Select a platform to view available services</p>
-        </div>
-      </div>
-
-      <Card className="mt-6">
-        <CardContent className="p-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-blue-800 dark:text-blue-200">7600 - CoinMarketCap Watchlist Followers [Max: 250K]</h3>
-                <p className="text-sm text-blue-600 dark:text-blue-300">[Start Time: 0 - 24 Hours] [Refill: Non Drop] [Speed: 5k/Day] - $27.50</p>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-600 dark:text-gray-400">START TIME</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">SPEED</div>
-              </div>
+  const renderNewOrderPage = () => {
+    if (!selectedCategory) {
+      return (
+        <div className="p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">CHOOSE A SOCIAL NETWORK</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-500">Select a platform to view services</div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+          
+          {categoriesLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 animate-pulse">
+                  <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {categories.map((category) => {
+                const iconData = getIconForCategory(category.name);
+                const Icon = iconData.icon;
+                return (
+                  <Card 
+                    key={category.name} 
+                    className="cursor-pointer hover:shadow-lg transition-shadow duration-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                    onClick={() => setSelectedCategory(category.name)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Icon className={`w-8 h-8 mx-auto mb-2 ${iconData.color}`} />
+                      <h3 className="font-medium text-gray-800 dark:text-gray-200">{category.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {category.serviceCount || 0} services
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Show services for selected category
+    const categoryServices = services.filter(service => 
+      service.category.toLowerCase() === selectedCategory.toLowerCase()
+    );
+
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <button 
+            onClick={() => setSelectedCategory(null)}
+            className="text-orange-500 hover:text-orange-600 mb-4 flex items-center"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back to categories
+          </button>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">
+            {selectedCategory} Services
+          </h2>
+        </div>
+
+        {servicesLoading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 animate-pulse">
+                <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {categoryServices.map((service) => (
+              <Card key={service.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-800 dark:text-gray-200 mb-2">
+                        {service.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        {service.description}
+                      </p>
+                      <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        <span>Min: {service.minQuantity}</span>
+                        <span>Max: {service.maxQuantity}</span>
+                        {service.refillSupported && <Badge variant="outline">Refill</Badge>}
+                        {service.cancelSupported && <Badge variant="outline">Cancel</Badge>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                        ${(service.price / 100).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">per 1000</div>
+                      <Button 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => setSelectedService(service)}
+                      >
+                        Order Now
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderOrdersPage = () => (
     <div className="p-6">
