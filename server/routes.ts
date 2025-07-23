@@ -114,6 +114,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get service categories for a specific platform
+  app.get("/api/platforms/:platform/categories", async (req, res) => {
+    try {
+      const { platform } = req.params;
+      const allServices = await justAnotherPanelApi.services();
+      
+      // Filter services for the specific platform
+      const platformServices = allServices.filter(service => {
+        const category = service.category.toLowerCase();
+        const platformLower = platform.toLowerCase();
+        
+        if (platformLower === 'instagram') return category.includes('instagram');
+        if (platformLower === 'facebook') return category.includes('facebook');
+        if (platformLower === 'youtube') return category.includes('youtube');
+        if (platformLower === 'tiktok') return category.includes('tiktok');
+        if (platformLower === 'x (twitter)') return category.includes('twitter') || category.includes('x.com');
+        if (platformLower === 'telegram') return category.includes('telegram');
+        if (platformLower === 'discord') return category.includes('discord');
+        if (platformLower === 'linkedin') return category.includes('linkedin');
+        if (platformLower === 'snapchat') return category.includes('snapchat');
+        if (platformLower === 'spotify') return category.includes('spotify');
+        if (platformLower === 'google') return category.includes('google');
+        if (platformLower === 'twitch') return category.includes('twitch');
+        if (platformLower === 'website traffic') return category.includes('traffic');
+        if (platformLower === 'reviews') return category.includes('reviews');
+        return false;
+      });
+
+      // Extract unique service categories for this platform
+      const serviceCategories = new Set<string>();
+      platformServices.forEach(service => {
+        serviceCategories.add(service.category);
+      });
+
+      const categories = Array.from(serviceCategories).map(categoryName => ({
+        name: categoryName,
+        serviceCount: platformServices.filter(s => s.category === categoryName).length
+      }));
+
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching platform categories:", error);
+      res.status(500).json({ message: "Failed to fetch platform categories" });
+    }
+  });
+
+  // Get services for a specific platform and category
+  app.get("/api/platforms/:platform/categories/:category/services", async (req, res) => {
+    try {
+      const { platform, category } = req.params;
+      const allServices = await justAnotherPanelApi.services();
+      
+      // Filter services for the specific platform and category
+      const filteredServices = allServices.filter(service => {
+        const serviceCategory = service.category.toLowerCase();
+        const platformLower = platform.toLowerCase();
+        const categoryDecoded = decodeURIComponent(category);
+        
+        // Check if service belongs to platform
+        let belongsToPlatform = false;
+        if (platformLower === 'instagram') belongsToPlatform = serviceCategory.includes('instagram');
+        else if (platformLower === 'facebook') belongsToPlatform = serviceCategory.includes('facebook');
+        else if (platformLower === 'youtube') belongsToPlatform = serviceCategory.includes('youtube');
+        else if (platformLower === 'tiktok') belongsToPlatform = serviceCategory.includes('tiktok');
+        else if (platformLower === 'x (twitter)') belongsToPlatform = serviceCategory.includes('twitter') || serviceCategory.includes('x.com');
+        else if (platformLower === 'telegram') belongsToPlatform = serviceCategory.includes('telegram');
+        else if (platformLower === 'discord') belongsToPlatform = serviceCategory.includes('discord');
+        else if (platformLower === 'linkedin') belongsToPlatform = serviceCategory.includes('linkedin');
+        else if (platformLower === 'snapchat') belongsToPlatform = serviceCategory.includes('snapchat');
+        else if (platformLower === 'spotify') belongsToPlatform = serviceCategory.includes('spotify');
+        else if (platformLower === 'google') belongsToPlatform = serviceCategory.includes('google');
+        else if (platformLower === 'twitch') belongsToPlatform = serviceCategory.includes('twitch');
+        else if (platformLower === 'website traffic') belongsToPlatform = serviceCategory.includes('traffic');
+        else if (platformLower === 'reviews') belongsToPlatform = serviceCategory.includes('reviews');
+        
+        return belongsToPlatform && service.category === categoryDecoded;
+      });
+
+      // Apply 20% markup to prices and transform
+      const servicesWithMarkup = filteredServices.map(service => ({
+        id: service.service,
+        externalId: service.service,
+        name: service.name,
+        description: service.description || `${service.name} - ${service.category}`,
+        category: service.category,
+        price: Math.round(parseFloat(service.rate || '0') * 120), // 20% markup in cents
+        rate: service.rate,
+        minQuantity: parseInt(service.min) || 1,
+        maxQuantity: parseInt(service.max) || 100000,
+        serviceType: service.type,
+        refillSupported: service.refill === true || service.refill === 1,
+        cancelSupported: service.cancel === true || service.cancel === 1,
+        isActive: true
+      }));
+
+      res.json(servicesWithMarkup);
+    } catch (error) {
+      console.error("Error fetching services for platform category:", error);
+      res.status(500).json({ message: "Failed to fetch services for platform category" });
+    }
+  });
+
   // Get user orders (protected route)
   app.get("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
