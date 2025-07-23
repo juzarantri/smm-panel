@@ -48,6 +48,12 @@ export const services = pgTable("services", {
   isActive: boolean("is_active").default(true),
   deliveryTime: text("delivery_time"), // e.g., "1-24 hours"
   features: text("features").array(),
+  // JustAnotherPanel integration fields
+  externalId: integer("external_id"), // JustAnotherPanel service ID
+  serviceType: text("service_type"), // type from external API
+  rate: text("rate"), // original rate from external API
+  refillSupported: boolean("refill_supported").default(false),
+  cancelSupported: boolean("cancel_supported").default(false),
 });
 
 export const orders = pgTable("orders", {
@@ -62,6 +68,12 @@ export const orders = pgTable("orders", {
   remainingCount: integer("remaining_count"),
   createdAt: timestamp("created_at").defaultNow(),
   completedAt: timestamp("completed_at"),
+  // JustAnotherPanel integration fields
+  externalOrderId: integer("external_order_id"), // Order ID from JustAnotherPanel
+  externalCharge: text("external_charge"), // Charge amount from external API
+  externalCurrency: text("external_currency"), // Currency from external API
+  // Additional order parameters for different service types
+  orderParams: jsonb("order_params"), // Store additional parameters like keywords, comments, etc.
 });
 
 export const insertServiceCategorySchema = createInsertSchema(serviceCategories).pick({
@@ -82,6 +94,11 @@ export const insertServiceSchema = createInsertSchema(services).pick({
   maxQuantity: true,
   deliveryTime: true,
   features: true,
+  externalId: true,
+  serviceType: true,
+  rate: true,
+  refillSupported: true,
+  cancelSupported: true,
 });
 
 export const insertOrderSchema = createInsertSchema(orders).pick({
@@ -89,6 +106,10 @@ export const insertOrderSchema = createInsertSchema(orders).pick({
   quantity: true,
   targetUrl: true,
   totalPrice: true,
+  orderParams: true,
+}).extend({
+  // Additional validation for order parameters
+  orderParams: z.record(z.any()).optional(),
 });
 
 export type UpsertUser = typeof users.$inferInsert;

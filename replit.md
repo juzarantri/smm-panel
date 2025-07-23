@@ -40,11 +40,30 @@ Preferred communication style: Simple, everyday language.
 - **Orders**: Purchase tracking with status management and pricing
 
 ### API Endpoints
+**Service Endpoints:**
 - `GET /api/categories` - Fetch all service categories
 - `GET /api/services` - Fetch all available services
 - `GET /api/categories/:id/services` - Fetch services by category
-- `GET /api/orders` - Fetch user orders (placeholder for auth)
-- `POST /api/orders` - Create new orders (placeholder for auth)
+
+**Order Management:**
+- `GET /api/orders` - Fetch user orders (authenticated)
+- `POST /api/orders` - Create new orders via JustAnotherPanel (authenticated)
+- `GET /api/orders/:id` - Get specific order details
+- `POST /api/orders/:id/sync` - Sync order status with provider
+- `POST /api/orders/:id/refill` - Request order refill
+- `POST /api/orders/:id/cancel` - Cancel order
+- `GET /api/orders/:id/external-status` - Get external provider status
+- `POST /api/orders/bulk/sync` - Bulk sync multiple orders
+
+**Admin Endpoints:**
+- `POST /api/admin/sync-services` - Sync services from JustAnotherPanel
+- `GET /api/admin/provider-balance` - Get provider balance
+
+**Authentication:**
+- `GET /api/login` - Initiate login process
+- `GET /api/callback` - OAuth callback handler
+- `GET /api/logout` - Logout user
+- `GET /api/auth/user` - Get current user info
 
 ### UI Components
 - Comprehensive component library using shadcn/ui
@@ -53,10 +72,20 @@ Preferred communication style: Simple, everyday language.
 - Form components with React Hook Form integration
 - Toast notifications and error handling
 
-### Authentication (Planned)
-- Google OAuth integration (UI components present, backend pending)
+### Authentication
+- Replit OAuth integration (fully implemented)
 - Session management with PostgreSQL session store
 - Protected routes and user authorization
+
+### JustAnotherPanel Integration
+- Full API integration with JustAnotherPanel SMM services
+- Real-time order management and status synchronization
+- Support for all JustAnotherPanel endpoints:
+  - Service management and synchronization
+  - Order creation, status tracking, refill, and cancellation
+  - Provider balance monitoring
+  - Bulk operations for order management
+- External order tracking with proper status mapping
 
 ## Data Flow
 
